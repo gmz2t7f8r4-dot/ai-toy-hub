@@ -6,6 +6,17 @@
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
+
+// 音色模型钉死：只要设了 ELEVENLABS_MODEL，就无视 AI 自己在工具参数里填的 model。
+// 必须在 require('./src/router') 之前改，因为 src/mcp.js 加载时就把 buildVoiceScore 拿走了。
+if (process.env.ELEVENLABS_MODEL) {
+  const voice = require('./src/voice');
+  const build = voice.buildVoiceScore;
+  const pinned = process.env.ELEVENLABS_MODEL;
+  voice.buildVoiceScore = (args, config, deps) => build({ ...args, model: pinned }, config, deps);
+  console.log(`[voice] model pinned to ${pinned}`);
+}
+
 const { createToyHub } = require('./src/router');
 const { panelGate } = require('./docker/panel-gate');
 
