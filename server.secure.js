@@ -42,6 +42,26 @@ const voiceConfig = process.env.ELEVENLABS_API_KEY
 const app = express();
 app.set('trust proxy', true); // Coolify 在 Traefik 后面，要能认出 https
 
+// 记一笔 MCP 请求：只记"带没带钥匙 / 长度 / 对不对 / 客户端是谁"，绝不记钥匙本身。
+// 排查 401 时看容器日志就能知道是没带、带错、还是客户端握手方式不对。
+const crypto = require('crypto');
+const sameKey = (a, b) => {
+  const x = Buffer.from(String(a || ''));
+  const y = Buffer.from(String(b || ''));
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+};
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/mcp')) return next();
+  const auth = String(req.headers.authorization || '');
+  const bearer = auth.replace(/^bearer\s+/i, '');
+  const given = bearer || String(req.query.key || '');
+  const ua = String(req.headers['user-agent'] || '').slice(0, 40);
+  res.on('finish', () => {
+    console.log(`[mcp] ${req.method} auth=${auth ? 'yes' : 'no'} keyLen=${String(given).length} match=${sameKey(given, token)} -> ${res.statusCode} ua="${ua}"`);
+  });
+  next();
+});
+
 const gate = panelGate({ password: process.env.PANEL_PASSWORD, key: token });
 app.use(gate.router);
 app.use(gate.middleware);
