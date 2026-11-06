@@ -94,7 +94,8 @@ function panelGate({ password, key } = {}) {
     res.json({ ok: true });
   });
 
-  const guarded = new Set(['/', '/index.html', '/panel.html']);
+  // 面板和中继页都要过这道门；/api 和 /mcp 仍然只认玩具钥匙（小奥和手机中继要用）。
+  const guarded = new Set(['/', '/index.html', '/panel.html', '/bridge.html']);
 
   function middleware(req, res, next) {
     if (!enabled) return next();
