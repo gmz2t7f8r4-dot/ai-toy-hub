@@ -11,4 +11,4 @@ if [ ! -f "$DATA/models/yamnet.tflite" ]; then
   echo "[entrypoint] copied yamnet.tflite into $DATA/models"
 fi
 
-exec node server.js
+exec node server.secure.js
