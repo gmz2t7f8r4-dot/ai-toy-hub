@@ -4,9 +4,11 @@
 # 所以跑起来之后不需要再连 Google / jsdelivr 下载任何东西。
 
 FROM node:22-bookworm-slim AS deps
+# 国内 npm 镜像：官方源在国内有时很慢
+ARG NPM_REGISTRY=https://registry.npmmirror.com
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --no-audit --no-fund
+RUN npm ci --omit=dev --no-audit --no-fund --registry=$NPM_REGISTRY
 
 FROM node:22-bookworm-slim
 ENV NODE_ENV=production \
@@ -14,9 +16,14 @@ ENV NODE_ENV=production \
     PORT=3737 \
     TOY_HUB_DATA=/app/data
 
-RUN apt-get update \
- && apt-get install -y --no-install-recommends ffmpeg ca-certificates curl \
- && rm -rf /var/lib/apt/lists/*
+# Debian 官方源在国内很慢（实测 130KB/s，腾讯镜像 1MB/s），装 ffmpeg 会卡很久
+RUN set -eux; \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+      sed -i 's|deb.debian.org|mirrors.cloud.tencent.com|g' /etc/apt/sources.list.d/debian.sources; \
+    fi; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends ffmpeg ca-certificates curl; \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
