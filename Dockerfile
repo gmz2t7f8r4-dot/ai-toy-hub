@@ -36,6 +36,10 @@ RUN set -eux; \
     done; \
     ls -l public/vendor/mediapipe public/vendor/mediapipe/wasm
 
+# 语音识别库改成用镜像里自带的那份（源码不动，方便以后同步作者更新）
+RUN node docker/patch-ears.js public/ears.js \
+ && grep -n "const TASKS" public/ears.js
+
 RUN mkdir -p /app/data
 
 EXPOSE 3737
