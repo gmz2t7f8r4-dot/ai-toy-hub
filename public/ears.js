@@ -3,7 +3,11 @@ import { api, HUB, getKey } from './client.js';
 // The AI's ears on the user's phone. Sounds are recognised on-device (YAMNet via MediaPipe);
 // only the recognised labels and a loudness number leave the phone. Hold-to-talk clips
 // go to the hub for transcription.
-const TASKS = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-audio@1.1.1';
+// 识别库默认用自己的服务器（镜像里带了，同域、国内也快），挂了再退回 jsdelivr。
+// 改这里是因为 jsdelivr 在国内经常连不上，一直卡在「正在准备耳朵…」。
+const TASKS_LOCAL = `${HUB}/vendor/mediapipe`;
+const TASKS_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-audio@1.1.1';
+let TASKS = TASKS_LOCAL;
 const LABELS = {
   Breathing: '喘息', Pant: '急喘', Gasp: '倒抽气', Sigh: '叹气', 'Wail, moan': '呻吟', Groan: '哼吟',
   Whimper: '呜咽', Whispering: '耳语', Laughter: '笑', Giggle: '咯咯笑', 'Crying, sobbing': '啜泣',
@@ -21,7 +25,15 @@ export function createEars({ onLabels, onStatus, isVoicePlaying }) {
   let reportTimer = null; let beatTimer = null;
 
   async function loadClassifier() {
-    const { FilesetResolver, AudioClassifier } = await import(`${TASKS}/audio_bundle.mjs`);
+    let bundle;
+    try {
+      bundle = await import(`${TASKS_LOCAL}/audio_bundle.mjs`);
+    } catch (e) {
+      TASKS = TASKS_CDN;
+      onStatus('本地识别库没加载上，改用备用地址…');
+      bundle = await import(`${TASKS_CDN}/audio_bundle.mjs`);
+    }
+    const { FilesetResolver, AudioClassifier } = bundle;
     const files = await FilesetResolver.forAudioTasks(`${TASKS}/wasm`);
     return AudioClassifier.createFromOptions(files, {
       baseOptions: { modelAssetPath: `${HUB}/models/yamnet.tflite` },
